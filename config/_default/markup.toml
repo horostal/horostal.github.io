@@ -1,0 +1,24 @@
+# -- Markup --
+# These settings are required for the theme to function.
+
+[goldmark]
+[goldmark.renderer]
+  unsafe = true
+
+[highlight]
+  noClasses = true
+
+[tableOfContents]
+  startLevel = 2
+  endLevel = 4
+
+[goldmark.extensions.passthrough]
+      enable = true
+      delimiters.block = [
+        ["\\[", "\\]"],
+        ["$$", "$$"]
+      ]
+      delimiters.inline = [
+        ["\\(", "\\)"],
+        ["$", "$"]
+      ]
