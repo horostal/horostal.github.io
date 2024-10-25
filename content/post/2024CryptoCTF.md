@@ -286,52 +286,67 @@ m = m * inverse(f, f+g) % (f+g)
 print(long_to_bytes(m))
 ```
 
-### Joe-19
+### *Bada
+
+没有源码，只有交互网址，连接上是给两个等式算`x,y`
 
 ```python
-#!/usr/bin/env sage
-
-from GPT import GPT6 # deep fake 
-from Crypto.Util.number import *
-from flag import flag
-
-P = [GPT6('A 512-bit prime appears in consecutive digits of e') for _ in range(4)]
-n, m = prod(P), bytes_to_long(flag)
-c = pow(m, 0x10001, n)
-print(f'n = {n}')
-print(f'c = {c}')
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Hey! It's time to solve the equation of a function f: N x N -> Z.    ┃
+┃ Function f has given certain conditions. In each step, solve the     ┃
+┃ equation f(x, y) = z with the given value of z. We know f(a+1, b) =  ┃
+┃ f(a, b) + a, and f(a, b+1) = f(a, b) - b, for every `a' and `b'.     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+┃ We know: f(1, 1) = 506703467839 and f(x, y) = 1236440673186
+┃ Please send x, y separated by comma: 
 ```
 
-赛时对`A 512-bit prime appears in consecutive digits of e`确实不理解，但通过`factordb`查表直接得到因子；实际上这句话意思是在自然对数`e`中，截取出一个`512`位的质数，
+$$
+f(x,y)=z\qquad f(a+1,b)=f(a,b)+a\qquad f(a,b+1)=f(a,b)-b\\
+f(1,1)=t\qquad f(2,1)=t+1\qquad f(3,1)=t+1+2\qquad f(x,1)=t+\sum_{i=1}^{x-1}i\\
+f(1,1)=t\qquad f(1,2)=t-1\qquad f(1,3)=t-1-2\qquad f(1,y)=t-\sum_{i=1}^{y-1}i\\
+f(x,x)=f(x,1)-\sum_{i=1}^{x-1}i=f(1,1)
+$$
+
+那么可以取`x=y+1`，$f(x,y)=f(y+1,y)=f(y,y)+y=f(1,1)+y$
 
 ```python
-import mpmath
-mpmath.mp.dps = 20000
-n = 8098851734937207931222242323719278262039311278408396153102939840336549151541408692581651429325092535316359074019383926520363453725271849258924996783681725111665666420297112252565291898169877088446887149672943461236879128453847442584868198963005276340812322871768679441501282681171263391133217373094824601748838255306528243603493400515452224778867670063040337191204276832576625227337670689681430055765023322478267339944312535862682499007423158988134472889946113994555274385595499503495488202251032898470224056637967019786473820952632846823442509236976892995505554046850101313269847925347047514591030406052185186963433
-
-e = str(mpmath.e).replace('.', '')
-length = 154
-
-for i in range(len(e) - length + 1):
-    p = int(e[i:i + length])
-    if (n % p == 0):
-        print(f"Found a 512-bit prime: {p}")
-else:
-    print("No 512-bit prime found in the specified range of digits.")
+from pwn import *
+nc = remote('00.cr.yp.toc.tf', 17113)
+nc.recvuntil(b'We know: f(1, 1)')
+for i in range(20):
+    t = nc.recvline().split(b'and')
+    x = eval(t[0].split(b'=')[-1])
+    y = eval(t[1].split(b'=')[-1])
+    print(x, y)
+    y = y - x
+    x = y+1
+    nc.recvline()
+    nc.sendline(f"{x},{y}".encode())
+    print(nc.recvline())
+    if i == 19:
+        print(nc.recvline())
 ```
 
-通过`mpmath`调整`dps`后可以更多的显示`e`的完整数字，`512`位对应十进制大概是`154`，那么需要求出的`p`的长度就是`154`，每次取`154`个连续字符作为整数，判断是不是`n`的因子，最后可以得到一个因子
-
-```python
-from Crypto.Util.number import *
-n = 8098851734937207931222242323719278262039311278408396153102939840336549151541408692581651429325092535316359074019383926520363453725271849258924996783681725111665666420297112252565291898169877088446887149672943461236879128453847442584868198963005276340812322871768679441501282681171263391133217373094824601748838255306528243603493400515452224778867670063040337191204276832576625227337670689681430055765023322478267339944312535862682499007423158988134472889946113994555274385595499503495488202251032898470224056637967019786473820952632846823442509236976892995505554046850101313269847925347047514591030406052185186963433
-p = 7728751393377105569802455757436190501772466214587592374418657530064998056688376964229825501195065837843125232135309371235243969149662310110328243570065781
-c = 7109666883988892105091816608945789114105575520302872143453259352879355990908149124303310269223886289484842913063773914475282456079383409262649058768777227206800315566373109284537693635270488429501591721126853086090237488579840160957328710017268493911400151764046320861154478494943928510792105098343926542515526432005970840321142196894715037239909959538873866099850417570975505565638622448664580282210383639403173773002795595142150433695880167315674091756597784809792396452578104130341085213443116999368555639128246707794076354522200892568943534878523445909591352323861659891882091917178199085781803940677425823784662
-d = inverse(65537, p-1)
-print(long_to_bytes(pow(c, d, p)))
-```
-
-
+然而正常分析过程应该如下
+$$
+f(a+1,b)=f(a,b)+a\\f(a,b+1)=f(a,b)-b\\f(x,y)=f(1,1)+(1+2+\cdots+(x-1))-(1+2+\cdots+(y-1))
+$$
+继续化简
+$$
+f(x,y)=f(1,1)+\frac{x(x-1)}{2}-\frac{y(y-1)}{2}\\
+c=m+\frac{x(x-1)}{2}-\frac{y(y-1)}{2}\\
+8(c-m)=4x(x-1)-4y(y-1)=(2x-1)^2-(2y-1)^2=(2x-2y)(2x+2y-2)\\
+2(c-m)=2d=(x-y)(x+y-1)
+$$
+解方程，对应两种情况
+$$
+\begin{cases}x-y=2\\x+t-1=d\end{cases}
+$$
+以及
+$$
+\begin{cases}x-y=1\\x+t-1=2d\end{cases}
+$$
 
 ### *honey
 
@@ -380,46 +395,253 @@ f.close()
 $$
 c_0\equiv m*Q_0+r_0*R_0+s_0*S_0\\
 c_1\equiv m*Q_1+r_1*R_1+s_1*S_0\\
-\cdots\\
+\cdots
+$$
+
+m位数不知，消掉m后方程位置量便全是小量
+$$
 Q_1c_0\equiv mQ_0Q_1+r_0R_0Q_1+s_0S_0Q_1\\Q_0c_1\equiv mQ_1Q_0+r_1R_1Q_0+s_1S_1Q_0\\
-r_0R_0Q_1+s_0S_0Q_1-r_1R_1Q_0-s_1S_1Q_0+Q_0c_1-Q_1c_0+kp=0\\
-\left[\begin{matrix}{}0&r_0&s_0&-r_1&-s_1&-k&1\end{matrix}\right]*\left[\begin{matrix}{}R_0Q_1&S_0Q_1&R_1Q_0&S_1Q_0&\quad p&Q_0c_1-Q_1c_0\\1&0&0&0&\quad0&0\\0&1&0&0&\quad0&0\\0&0&1&0&\quad0&0\\0&0&0&1&\quad0&0\\0&0&0&0&\quad1&0\\0&0&0&0&\quad0&1\end{matrix}\right]
+r_0R_0Q_1+s_0S_0Q_1-r_1R_1Q_0-s_1S_1Q_0+Q_0c_1-Q_1c_0+kp=0
+$$
+将方程写成格的形式
+$$
+\left(\begin{matrix}r_0&s_0&-r_1&-s_1&-k&1\end{matrix}\right)*\left(\begin{matrix}1&0&0&0&0&R_0Q_1\\0&1&0&0&0&S_0Q_1\\0&0&1&0&0&R_1Q_0\\0&0&0&1&0&S_1Q_0\\0&0&0&0&1&p\\0&0&0&0&0&Q_0c_1-Q_1c_0\end{matrix}\right)=\left(\begin{matrix}r_0&s_0&-r_1&-s_1&-k&0\end{matrix}\right)
 $$
 
 ```python
-#!/usr/bin/env python3
-
-from sage.all import identity_matrix, Matrix
-
-
-with open('params_enc.txt') as f:
-    exec(f.read())
-
-B = 2 ** 512
-
-M = Matrix([
-        [
-        R[0] * Q[1] % p,
-        S[0] * Q[1] % p,
-        R[1] * Q[0] % p,
-        S[1] * Q[0] % p,
-        p,
-        (Q[0] * C[1] - Q[1] * C[0]) % p
-    ]
-]).stack(identity_matrix(6))
-
-M[-1, -1] = B
+exec(open('D:/ctf/params_enc.txt').read())
+M = identity_matrix(6)
+M[-1] = vector([R[0]*Q[1]%p, S[0]*Q[1]%p, R[1]*Q[0]%p, S[1]*Q[0]%p, p, (Q[0]*C[1]-Q[1]*C[0])%p])
 
 L = M.T.LLL()
-row = L[-1]
-assert row[0] == 0 and row[-1] == B
+row = L[0]
+assert row[-1] == 0
 
 r0, s0 = row[1:3]
 m = (C[0] - r0 * R[0] - s0 * S[0]) * pow(Q[0], -1, p) % p
 print(bytes.fromhex(hex(m)[2:]).decode())
 ```
 
+鸡块师傅则是将所有数据用上进行LWE，格不熟悉也没明白师傅构造的格形式，从最笨的列出法开始
 
+```python
+L = Matrix(ZZ,3*nums,3*nums)
+for i in range(2*nums):
+    L[i,i] = 1
+L[2*nums,2*nums] = 2^32
+for i in range(1,nums):
+    L[0,2*nums+i] = R[0]*Q[i]
+    L[1,2*nums+i] = S[0]*Q[i]
+    L[2*i,2*nums+i] = -R[i]*Q[0]
+    L[1+2*i,2*nums+i] = -S[i]*Q[0]
+    L[2*nums,2*nums+i] = C[i]*Q[0] - C[0]*Q[i]
+for i in range(1,nums):
+    L[-i,-i] = p
+L[:,-1:] *= 1
+```
+
+$$
+\left(\begin{matrix}1&0&0&0&0&0&0&R_0Q_1&R_0Q_2\\0&1&0&0&0&0&0&S_0Q_1&S_0Q_2\\0&0&1&0&0&0&0&-R_1Q_0&0\\0&0&0&1&0&0&0&-S_1Q_0&0\\0&0&0&0&1&0&0&0&-R_2Q_0\\0&0&0&0&0&1&0&0&-S_2Q_0\\0&0&0&0&0&0&1&Q_0c_1-Q_1c_0&Q_0c_2-Q_2c_0\\0&0&0&0&0&0&0&p&0\\0&0&0&0&0&0&0&0&p\end{matrix}\right)_{9\times9}
+$$
+
+首先是二组进行构造，对应向量是$(r_0\quad s_0\quad r_1\quad s_1\quad r_2\quad s_2\quad1\quad k_1\quad k_2)$
+$$
+\left(\begin{matrix}1&0&0&0&0&0&0&0&0&R_0Q_1&R_0Q_2&R_0Q_3\\0&1&0&0&0&0&0&0&0&S_0Q_1&S_0Q_2&S_0Q_3\\0&0&1&0&0&0&0&0&0&-R_1Q_0&0&0\\0&0&0&1&0&0&0&0&0&-S_1Q_0&0&0\\0&0&0&0&1&0&0&0&0&0&-R_2Q_0&0\\0&0&0&0&0&1&0&0&0&0&-S_2Q_0&0\\0&0&0&0&0&0&1&0&0&0&0&-R_3Q_0\\0&0&0&0&0&0&0&1&0&0&0&-S_3Q_0\\0&0&0&0&0&0&0&0&1&Q_0c_1-Q_1c_0&Q_0c_2-Q_2c_0&Q_0c_3-Q_3c_0\\0&0&0&0&0&0&0&0&0&p&0&0\\0&0&0&0&0&0&0&0&0&0&p&0\\0&0&0&0&0&0&0&0&0&0&0&p\end{matrix}\right)_{12\times12}
+$$
+再是三组构造向量是$(r_0\quad s_0\quad r_1\quad s_1\quad r_2\quad s_2\quad r_3\quad s_3\quad1\quad k_1\quad k_2\quad k_3)$，依次递推下去，跟$(r_0\quad s_0)$相乘数都放在前两行，而其他$(r_n\quad s_n)$形式只利用一次需要隔开处理，因此中间会有空0存在，与1相乘又是一行，最后是一个跟p相关方阵。
+
+### Joe-19
+
+```python
+#!/usr/bin/env sage
+
+from GPT import GPT6 # deep fake 
+from Crypto.Util.number import *
+from flag import flag
+
+P = [GPT6('A 512-bit prime appears in consecutive digits of e') for _ in range(4)]
+n, m = prod(P), bytes_to_long(flag)
+c = pow(m, 0x10001, n)
+print(f'n = {n}')
+print(f'c = {c}')
+```
+
+赛时对`A 512-bit prime appears in consecutive digits of e`确实不理解，但通过`factordb`查表直接得到因子；实际上这句话意思是在自然对数`e`中，截取出一个`512`位的质数，
+
+```python
+import mpmath
+mpmath.mp.dps = 20000
+n = 8098851734937207931222242323719278262039311278408396153102939840336549151541408692581651429325092535316359074019383926520363453725271849258924996783681725111665666420297112252565291898169877088446887149672943461236879128453847442584868198963005276340812322871768679441501282681171263391133217373094824601748838255306528243603493400515452224778867670063040337191204276832576625227337670689681430055765023322478267339944312535862682499007423158988134472889946113994555274385595499503495488202251032898470224056637967019786473820952632846823442509236976892995505554046850101313269847925347047514591030406052185186963433
+
+e = str(mpmath.e).replace('.', '')
+length = 154
+
+for i in range(len(e) - length + 1):
+    p = int(e[i:i + length])
+    if (n % p == 0):
+        print(f"Found a 512-bit prime: {p}")
+else:
+    print("No 512-bit prime found in the specified range of digits.")
+```
+
+通过`mpmath`调整`dps`后可以更多的显示`e`的完整数字，`512`位对应十进制大概是`154`，那么需要求出的`p`的长度就是`154`，每次取`154`个连续字符作为整数，判断是不是`n`的因子，最后可以得到一个因子
+
+```python
+from Crypto.Util.number import *
+n = 8098851734937207931222242323719278262039311278408396153102939840336549151541408692581651429325092535316359074019383926520363453725271849258924996783681725111665666420297112252565291898169877088446887149672943461236879128453847442584868198963005276340812322871768679441501282681171263391133217373094824601748838255306528243603493400515452224778867670063040337191204276832576625227337670689681430055765023322478267339944312535862682499007423158988134472889946113994555274385595499503495488202251032898470224056637967019786473820952632846823442509236976892995505554046850101313269847925347047514591030406052185186963433
+p = 7728751393377105569802455757436190501772466214587592374418657530064998056688376964229825501195065837843125232135309371235243969149662310110328243570065781
+c = 7109666883988892105091816608945789114105575520302872143453259352879355990908149124303310269223886289484842913063773914475282456079383409262649058768777227206800315566373109284537693635270488429501591721126853086090237488579840160957328710017268493911400151764046320861154478494943928510792105098343926542515526432005970840321142196894715037239909959538873866099850417570975505565638622448664580282210383639403173773002795595142150433695880167315674091756597784809792396452578104130341085213443116999368555639128246707794076354522200892568943534878523445909591352323861659891882091917178199085781803940677425823784662
+d = inverse(65537, p-1)
+print(long_to_bytes(pow(c, d, p)))
+```
+
+### melek
+
+```python
+#!/usr/bin/env sage
+
+from Crypto.Util.number import *
+from flag import flag
+
+def encrypt(msg, nbit):
+	m, p = bytes_to_long(msg), getPrime(nbit)
+	assert m < p
+	e, t = randint(1, p - 1), randint(1, nbit - 1)
+	C = [randint(0, p - 1) for _ in range(t - 1)] + [pow(m, e, p)]
+	R.<x> = GF(p)[]
+	f = R(0)
+	for i in range(t): f += x**(t - i - 1) * C[i]
+	P = [list(range(nbit))]
+	shuffle(P)
+	P = P[:t]
+	PT = [(a, f(a)) for a in [randint(1, p - 1) for _ in range(t)]]
+	return e, p, PT
+
+nbit = 512
+enc = encrypt(flag, nbit)
+print(f'enc = {enc}')
+```
+
+$$
+f(x)=c_0x^{t-1}+c_1x^{t-2}+\cdots+c_ix^{t-i-1}+\cdots\\
+\left[\begin{matrix}c_0&c_1&\cdots&c_{t-1}\end{matrix}\right]*\left[\begin{matrix}
+a_0^{t-1}&a_1^{t-1}&\cdots&a_{t-1}^{t-1}\\
+a_0^{t-2}&a_1^{t-2}&\cdots&a_{t-1}^{t-2}\\
+&\cdots\\
+a_0^{0}&a_1^{0}&\cdots&a_{t-1}^{0}\end{matrix}\right]=\left[\begin{matrix}f(a_0)&f(a_1)&\cdots&f(a_{t-1})\end{matrix}\right]
+$$
+
+```python
+exec(open('D:/ctf/melek/output.txt').read())
+e, p, pt = enc
+t = len(pt)
+a, c = [0]*t, [0]*t
+for i in range(t):
+    a[i], c[i] = pt[i]
+fa = [[0]*t for _ in range(t)]
+for i in range(t):
+    for j in range(t):
+        fa[j][i] = pow(a[i], t-j-1, p)
+
+mid = matrix(GF(p), fa)
+right = matrix(GF(p), c)
+res = mid.solve_left(right)
+```
+
+拿出`res`最后一行最后一个数字为密文`c`，对其进行求解
+
+```python
+from gmpy2 import *
+from Crypto.Util.number import *
+import random
+import math
+
+e = 3316473234742974510609176519968107496789324827839883341690084725836178910956015867823194881383215644380418162164089588828798132617649547462723383625707014
+p = 9486915681801496583557174944405629563403346572353787092582704754226121096049954529719556720667960706741084895049852989479773192757968901195529919070579679
+c2 = 7578451683223886721897751965012512970186814199061886859082385728532294810974986601048390882041773215459258245487361965408708218417206386123135513829067466
+# GCD(e, p-1)==2
+d = inverse(e//2, p-1)
+c2 = (pow(c2, d, p))
+e = 2
+
+def onemod(e, q):
+    p = random.randint(1, q-1)
+    while(powmod(p, (q-1)//e, q) == 1):  # (r,s)=1
+        p = random.randint(1, q)
+    return p
+
+def AMM_rth(o, r, q):  # r|(q-1
+    assert((q-1) % r == 0)
+    p = onemod(r, q)
+
+    t = 0
+    s = q-1
+    while(s % r == 0):
+        s = s//r
+        t += 1
+    k = 1
+    while((s*k+1) % r != 0):
+        k += 1
+    alp = (s*k+1)//r
+
+    a = powmod(p, r**(t-1)*s, q)
+    b = powmod(o, r*a-1, q)
+    c = powmod(p, s, q)
+    h = 1
+
+    for i in range(1, t-1):
+        d = powmod(int(b), r**(t-1-i), q)
+        if d == 1:
+            j = 0
+        else:
+            j = (-math.log(d, a)) % r
+        b = (b*(c**(r*j))) % q
+        h = (h*c**j) % q
+        c = (c*r) % q
+    result = (powmod(o, alp, q)*h)
+    return result
+
+def ALL_Solution(m, q, rt, cq, e):
+    mp = []
+    for pr in rt:
+        r = (pr*m) % q
+        # assert(pow(r, e, q) == cq)
+        mp.append(r)
+    return mp
+
+def ALL_ROOT2(r, q):  # use function set() and .add() ensure that the generated elements are not repeated
+    li = set()
+    while(len(li) < r):
+        p = powmod(random.randint(1, q-1), (q-1)//r, q)
+        li.add(p)
+    return li
+
+mp = AMM_rth(c2, e, p)
+rt1 = ALL_ROOT2(e, p)
+amp = ALL_Solution(mp, p, rt1, c2, e)
+for i in amp:
+    tmp = long_to_bytes(i)
+    if b'CCTF' in tmp:
+        print(tmp)
+```
+
+鸡块师傅则是直接拉格朗日插值法，sage函数定义好比较方便
+
+```python
+from Crypto.Util.number import *
+
+e,p,PT = 
+
+PR.<x> = PolynomialRing(Zmod(p))
+recover_f = PR.lagrange_polynomial(PT)
+c = recover_f(0)
+
+m2 = pow(c,inverse(e//2,p-1),p)
+PR.<y> = PolynomialRing(Zmod(p))
+f = y^2 - m2
+res = f.roots()
+print(long_to_bytes(int(res[1][0])))
+```
 
 ### RM2
 
@@ -571,137 +793,6 @@ while True:
 
 同样会光滑思想去跑了一遍，时间是`232.0996527671814`
 
-### melek
-
-```python
-#!/usr/bin/env sage
-
-from Crypto.Util.number import *
-from flag import flag
-
-def encrypt(msg, nbit):
-	m, p = bytes_to_long(msg), getPrime(nbit)
-	assert m < p
-	e, t = randint(1, p - 1), randint(1, nbit - 1)
-	C = [randint(0, p - 1) for _ in range(t - 1)] + [pow(m, e, p)]
-	R.<x> = GF(p)[]
-	f = R(0)
-	for i in range(t): f += x**(t - i - 1) * C[i]
-	P = [list(range(nbit))]
-	shuffle(P)
-	P = P[:t]
-	PT = [(a, f(a)) for a in [randint(1, p - 1) for _ in range(t)]]
-	return e, p, PT
-
-nbit = 512
-enc = encrypt(flag, nbit)
-print(f'enc = {enc}')
-```
-
-$$
-f(x)=c_0x^{t-1}+c_1x^{t-2}+\cdots+c_ix^{t-i-1}+\cdots\\
-\left[\begin{matrix}c_0&c_1&\cdots&c_{t-1}\end{matrix}\right]*\left[\begin{matrix}
-a_0^{t-1}&a_1^{t-1}&\cdots&a_{t-1}^{t-1}\\
-a_0^{t-2}&a_1^{t-2}&\cdots&a_{t-1}^{t-2}\\
-&\cdots\\
-a_0^{0}&a_1^{0}&\cdots&a_{t-1}^{0}\end{matrix}\right]=\left[\begin{matrix}f(a_0)&f(a_1)&\cdots&f(a_{t-1})\end{matrix}\right]
-$$
-
-```python
-exec(open('D:/ctf/melek/output.txt').read())
-e, p, pt = enc
-t = len(pt)
-a, c = [0]*t, [0]*t
-for i in range(t):
-	a[i], c[i] = pt[i]
-
-fa = [[0]*t for _ in range(t)]
-for i in range(t):
-    for j in range(t):
-        fa[j][i] = pow(a[i], t-j-1, p)
-
-mid = matrix(GF(p), fa)
-right = matrix(GF(p), c)
-res = mid.solve_left(right)
-```
-
-拿出`res`最后一行最后一个数字为密文`c`，对其进行求解
-
-```python
-from gmpy2 import *
-from Crypto.Util.number import *
-import random
-import math
-
-e = 3316473234742974510609176519968107496789324827839883341690084725836178910956015867823194881383215644380418162164089588828798132617649547462723383625707014
-p = 9486915681801496583557174944405629563403346572353787092582704754226121096049954529719556720667960706741084895049852989479773192757968901195529919070579679
-c2 = 7578451683223886721897751965012512970186814199061886859082385728532294810974986601048390882041773215459258245487361965408708218417206386123135513829067466
-# GCD(e, p-1)==2
-d = inverse(e//2, p-1)
-c2 = (pow(c2, d, p))
-e = 2
-
-def onemod(e, q):
-    p = random.randint(1, q-1)
-    while(powmod(p, (q-1)//e, q) == 1):  # (r,s)=1
-        p = random.randint(1, q)
-    return p
-
-def AMM_rth(o, r, q):  # r|(q-1
-    assert((q-1) % r == 0)
-    p = onemod(r, q)
-
-    t = 0
-    s = q-1
-    while(s % r == 0):
-        s = s//r
-        t += 1
-    k = 1
-    while((s*k+1) % r != 0):
-        k += 1
-    alp = (s*k+1)//r
-
-    a = powmod(p, r**(t-1)*s, q)
-    b = powmod(o, r*a-1, q)
-    c = powmod(p, s, q)
-    h = 1
-
-    for i in range(1, t-1):
-        d = powmod(int(b), r**(t-1-i), q)
-        if d == 1:
-            j = 0
-        else:
-            j = (-math.log(d, a)) % r
-        b = (b*(c**(r*j))) % q
-        h = (h*c**j) % q
-        c = (c*r) % q
-    result = (powmod(o, alp, q)*h)
-    return result
-
-def ALL_Solution(m, q, rt, cq, e):
-    mp = []
-    for pr in rt:
-        r = (pr*m) % q
-        # assert(pow(r, e, q) == cq)
-        mp.append(r)
-    return mp
-
-def ALL_ROOT2(r, q):  # use function set() and .add() ensure that the generated elements are not repeated
-    li = set()
-    while(len(li) < r):
-        p = powmod(random.randint(1, q-1), (q-1)//r, q)
-        li.add(p)
-    return li
-
-mp = AMM_rth(c2, e, p)
-rt1 = ALL_ROOT2(e, p)
-amp = ALL_Solution(mp, p, rt1, c2, e)
-for i in amp:
-    tmp = long_to_bytes(i)
-    if b'CCTF' in tmp:
-        print(tmp)
-```
-
 ### *vantuk
 
 ```python
@@ -749,45 +840,29 @@ solve([eq1,eq2],m1,m2)
 # [m1 == 350799328046836724707876331502758499088281144928479088116262376685681093677946249551, m2 == 214418026424679791626535920403147011577793961208832046224896849702981130286017264892462]
 ```
 
-### *Bada
-
-没有源码，只有交互网址，连接上是给两个等式算`x,y`
+实际上不借助解实数方程，可以用结式解，首先分子分母可能有约分处理，所以需要两个变量解结式
+$$
+A=\frac{\frac{17a^2+1}{k}}{\frac{17a}{k}}=\frac{t_1}{t_2}\\
+17a^2+1=kt_1\\17a=kt_2
+$$
+定义到整数域上解
 
 ```python
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Hey! It's time to solve the equation of a function f: N x N -> Z.    ┃
-┃ Function f has given certain conditions. In each step, solve the     ┃
-┃ equation f(x, y) = z with the given value of z. We know f(a+1, b) =  ┃
-┃ f(a, b) + a, and f(a, b+1) = f(a, b) - b, for every `a' and `b'.     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-┃ We know: f(1, 1) = 506703467839 and f(x, y) = 1236440673186
-┃ Please send x, y separated by comma: 
+t1 = 6080057478320734754578252336954411086329731226445881868123716230995225973869803901199434606333357820515656618869146654158788168766842914410452961599054518002813068771365518772891986864276289860125347726759503163130747954047189098354503529975642910040243893426023284760560550058749486622149336255123273699589
+t2 = 10166660077500992696786674322778747305573988490459101951030888617339232488971703619809763229396514541455656973227690713112602531083990085142454453827397614
+PR.<k,a> = PolynomialRing(ZZ)
+f1 = 17*a^2 + 1 - k*t1
+f2 = 17*a - k*t2
+h = f1.sylvester_matrix(f2, k).det()
+res = h.univariate_polynomial().monic().roots()
+a = int(res[0][0])
+assert a < (1 << 512)
 ```
 
-$$
-f(x,y)=z\qquad f(a+1,b)=f(a,b)+a\qquad f(a,b+1)=f(a,b)-b\\
-f(1,1)=t\qquad f(2,1)=t+1\qquad f(3,1)=t+1+2\qquad f(x,1)=t+\sum_{i=1}^{x-1}i\\
-f(1,1)=t\qquad f(1,2)=t-1\qquad f(1,3)=t-1-2\qquad f(1,y)=t-\sum_{i=1}^{y-1}i\\
-f(x,x)=f(x,1)-\sum_{i=1}^{x-1}i=f(1,1)
-$$
-
-那么可以取`x=y+1`，$f(x,y)=f(y+1,y)=f(y,y)+y=f(1,1)+y$
+有的时候执行`f1.sylvester_matrix(f2, k).det()`会报错在`.det()`方法上，这时解决方法是换个函数
 
 ```python
-from pwn import *
-nc = remote('00.cr.yp.toc.tf', 17113)
-nc.recvuntil(b'We know: f(1, 1)')
-for i in range(20):
-    t = nc.recvline().split(b'and')
-    x = eval(t[0].split(b'=')[-1])
-    y = eval(t[1].split(b'=')[-1])
-    print(x, y)
-    y = y - x
-    x = y+1
-    nc.recvline()
-    nc.sendline(f"{x},{y}".encode())
-    print(nc.recvline())
-    if i == 19:
-        print(nc.recvline())
+from sage.matrix.matrix2 import Matrix
+Matrix.determinant(f1.sylvester_matrix(f2, k))
 ```
 
