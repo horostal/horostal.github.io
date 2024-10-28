@@ -90,6 +90,64 @@ for /r %%a in (HBR\*) do call %program% -b %key:~0,8% -a %key:~8,15% -v -x -c  %
 pause
 ```
 
+### PGR
+
+继续学了些`bat`脚本，参数`%%a`前面可以加些东西，例如下面的`%%~na`，这样只输出文件名(无路径信息和后缀)，而`%%~xa`包括后缀(无路径信息)；PGR视频完全可以用`crid_mod.exe`提取，是`H264`编码的视频，`VLC`支持不是很好，考虑用`PotPlayer`打开；但是音频无法提取，借助原神工具`GICutscenes.exe`可以拿到`hca`文件，再用`vgmstream-cli.exe`提取`wav`跟视频组合。
+
+```bat
+@echo off
+set key=00DF4ED46995B1BC
+set program="D:\Program Files\unpack\GICutscenes-0.5.0-win-x64-standalone\GICutscenes.exe"
+set vgm="D:\Program Files\unpack\vgmstream-win64\vgmstream-cli.exe"
+set crid="D:\Program Files\unpack\CRID(.usm)Demux Tool v1.02-mod\crid_mod.exe"
+
+for /r %%a in (PGR\*.usm) do %crid% -b %key:~0,8% -a %key:~8,16% -v %%a & %program% demuxUsm %%a -b %key:~0,8% -a %key:~8,16% -o PGR\output & %vgm% PGR\output\%%~na_0.hca -o PGR\output\%%~na_0.wav & ffmpeg -i PGR\%%~na.m2v -i PGR\output\%%~na_0.wav -c:v copy -map 0:v -map 1:a -y PGR\%%~na.mp4 & echo Y | rmdir /S PGR\output
+
+pause
+```
+
+### SR
+
+`crid_mod.exe`只能提取单音轨`usm`，对于多音轨提取出来全是重合，根本没法听；考虑用[PyCriUsm](https://github.com/BUnipendix/PyCriUsm)，程序二版本某些时候无法提出中文音频，改用wannacri；每个密钥不同用`bat`不好处理，将`bat`指令放到`python`内调用。
+
+```python
+pip install wannacri
+```
+
+path目录下新建一个solve.bat脚本，用来进行重命名
+
+```bat
+@echo off
+for /r %%a in (*.sfa) do (ren "%%a" %%~na.adx)
+```
+
+主要时间在等待wannacri执行完毕；2.2版本大更新后密钥完全变了，在工具的issue里面也有提到，项目里的2.2密钥也提取不了东西，对于2.2版本之后内容无能为力。
+
+```python
+from pycriusm import key
+import os
+
+vgm = r'"D:\Program Files\unpack\vgmstream-win64\vgmstream-cli.exe"'
+path = r"E:\miHoYo Launcher\games\Star Rail Game\StarRail_Data\StreamingAssets\Video\Windows"
+tmp = key.raw_keys['StarRail']['KeyMap']
+
+os.chdir(path)
+for i in tmp.keys():
+    if i != '2.2':
+        for j in tmp[i]:
+            os.system(f'wannacri extractusm {j}.usm --key {tmp[i][j]}')
+            key = hex(tmp[i][j])[2:].zfill(16)
+
+os.system('solve.bat')
+for i in os.listdir('output'):
+    for audio in os.listdir(f'output/{i}/audios'):
+        if audio.endswith('cn00.adx'):
+            os.system(f'{vgm} output/{i}/audios/{audio}')
+            os.system(f'ffmpeg -i output/{i}/videos/{os.listdir(f"output/{i}/videos")[0]} -i output/{i}/audios/{audio}.wav -c:v copy -map 0:v -map 1:a -y output/{i}.mp4')
+        elif audio.endswith('cn00.wav'):
+            os.system(f'ffmpeg -i output/{i}/videos/{os.listdir(f"output/{i}/videos")[0]} -i output/{i}/audios/{audio} -c:v copy -map 0:v -map 1:a -y output/{i}.mp4')
+```
+
 ### 安卓抓包
 
 有些游戏角色好感度上去，解锁剧情才会下载所需要的包，这时候可以通过抓包看看里面有哪些数据，约等于直接通过。
